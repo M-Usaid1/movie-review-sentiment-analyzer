@@ -1,5 +1,7 @@
 ﻿torch
 transformers
+tokenizers
+sentencepiece
 fastapi
 uvicorn
 streamlit

@@ -676,7 +676,10 @@ SAMPLES = {
 # ---------- Model loading ----------
 @st.cache_resource
 def load_model():
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_REPO)
+    tokenizer = AutoTokenizer.from_pretrained(
+    MODEL_REPO,
+    use_fast=False,
+    )
 
     model = AutoModelForSequenceClassification.from_pretrained(
         MODEL_REPO
