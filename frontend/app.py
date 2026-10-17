@@ -676,28 +676,24 @@ SAMPLES = {
 # ---------- Model loading ----------
 @st.cache_resource
 def load_model():
+    model_repo = "Usaid2/distilbert-imdb-sentiment"
+    model_folder = "backend/distilbert_model"
+
     tokenizer = AutoTokenizer.from_pretrained(
-    MODEL_REPO,
-    use_fast=False,
+        model_repo,
+        subfolder=model_folder,
+        use_fast=True,
     )
 
     model = AutoModelForSequenceClassification.from_pretrained(
-        MODEL_REPO
+        model_repo,
+        subfolder=model_folder,
     )
+
     model.to(DEVICE)
     model.eval()
 
     return tokenizer, model
-
-
-# ---------- Session state ----------
-def load_sample():
-    selected = st.session_state["sample_choice"]
-    st.session_state["review_input"] = (
-        SAMPLES[selected]
-        if selected in SAMPLES
-        else ""
-    )
 
 
 def clear_review():
