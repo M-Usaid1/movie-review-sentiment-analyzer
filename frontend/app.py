@@ -645,9 +645,19 @@ from transformers import (
     AutoModelForSequenceClassification,
 )
 
-# ---------- Configuration ----------
+# ==================================================
+# 1. CONFIGURATION
+# ==================================================
+
 MODEL_REPO = "Usaid2/distilbert-imdb-sentiment"
+MODEL_SUBFOLDER = "backend/distilbert_model"
+
 DEVICE = torch.device("cpu")
+MAX_LENGTH = 256
+
+# ==================================================
+# 2. PAGE CONFIGURATION
+# ==================================================
 
 st.set_page_config(
     page_title="Sentiment AI | Movie Review Analyzer",
@@ -656,7 +666,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ---------- Sample reviews ----------
+# ==================================================
+# 3. SAMPLE REVIEWS
+# ==================================================
+
 SAMPLES = {
     "Positive example": (
         "A wonderful film with outstanding performances, "
@@ -672,22 +685,21 @@ SAMPLES = {
     ),
 }
 
+# ==================================================
+# 4. MODEL LOADING
+# ==================================================
 
-# ---------- Model loading ----------
-@st.cache_resource
+@st.cache_resource(show_spinner="Loading DistilBERT model...")
 def load_model():
-    model_repo = "Usaid2/distilbert-imdb-sentiment"
-    model_folder = "backend/distilbert_model"
-
     tokenizer = AutoTokenizer.from_pretrained(
-        model_repo,
-        subfolder=model_folder,
+        MODEL_REPO,
+        subfolder=MODEL_SUBFOLDER,
         use_fast=True,
     )
 
     model = AutoModelForSequenceClassification.from_pretrained(
-        model_repo,
-        subfolder=model_folder,
+        MODEL_REPO,
+        subfolder=MODEL_SUBFOLDER,
     )
 
     model.to(DEVICE)
@@ -696,10 +708,9 @@ def load_model():
     return tokenizer, model
 
 
-def clear_review():
-    st.session_state["review_input"] = ""
-    st.session_state["sample_choice"] = "Write my own review"
-
+# ==================================================
+# 5. SESSION STATE AND CALLBACKS
+# ==================================================
 
 if "sample_choice" not in st.session_state:
     st.session_state["sample_choice"] = "Write my own review"
@@ -707,13 +718,42 @@ if "sample_choice" not in st.session_state:
 if "review_input" not in st.session_state:
     st.session_state["review_input"] = ""
 
+if "prediction" not in st.session_state:
+    st.session_state["prediction"] = None
 
-# ---------- Custom styling ----------
+
+def load_sample():
+    """Load the selected example into the review field."""
+    selected = st.session_state["sample_choice"]
+
+    if selected in SAMPLES:
+        st.session_state["review_input"] = SAMPLES[selected]
+    else:
+        st.session_state["review_input"] = ""
+
+    st.session_state["prediction"] = None
+
+
+def clear_review():
+    """Clear the review and reset the selected example."""
+    st.session_state["review_input"] = ""
+    st.session_state["sample_choice"] = "Write my own review"
+    st.session_state["prediction"] = None
+
+
+# ==================================================
+# 6. CUSTOM STYLING
+# ==================================================
+
 st.markdown(
     """
     <style>
     .stApp {
-        background: linear-gradient(135deg, #101827 0%, #172554 100%);
+        background: linear-gradient(
+            135deg,
+            #101827 0%,
+            #172554 100%
+        );
         color: #F8FAFC;
     }
 
@@ -779,16 +819,25 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ==================================================
+# 7. HEADER
+# ==================================================
 
-# ---------- Header ----------
 st.markdown(
     """
     <div class="hero">
-        <div class="eyebrow">NLP · TRANSFORMERS · DEEP LEARNING</div>
-        <h1>Movie Review<br>Sentiment Analyzer</h1>
+        <div class="eyebrow">
+            NLP · TRANSFORMERS · DEEP LEARNING
+        </div>
+
+        <h1>
+            Movie Review<br>
+            Sentiment Analyzer
+        </h1>
+
         <p>
-            Explore the sentiment behind a movie review using a fine-tuned
-            DistilBERT model hosted on Hugging Face.
+            Explore the sentiment behind a movie review using
+            a fine-tuned DistilBERT model hosted on Hugging Face.
         </p>
     </div>
     """,
@@ -797,25 +846,36 @@ st.markdown(
 
 st.divider()
 
+# ==================================================
+# 8. MAIN LAYOUT
+# ==================================================
 
-# ---------- Main layout ----------
-left, right = st.columns([1.15, 0.85], gap="large")
+left, right = st.columns(
+    [1.15, 0.85],
+    gap="large",
+)
 
 with left:
     st.markdown("### Analyze a review")
+
     st.markdown(
-        '<p class="muted">Enter your own review or choose an example.</p>',
+        '<p class="muted">'
+        'Enter your own review or choose an example.'
+        '</p>',
         unsafe_allow_html=True,
     )
 
     st.selectbox(
         "Try a sample",
-        ["Write my own review"] + list(SAMPLES.keys()),
+        options=[
+            "Write my own review",
+            *SAMPLES.keys(),
+        ],
         key="sample_choice",
         on_change=load_sample,
     )
 
-    review = st.text_area(
+    st.text_area(
         "Movie review",
         placeholder="What did you think of the movie?",
         height=220,
@@ -840,14 +900,22 @@ with left:
             on_click=clear_review,
         )
 
+# ==================================================
+# 9. PREDICTION PANEL
+# ==================================================
 
 with right:
     st.markdown("### Prediction")
 
     with st.container(border=True):
+
         if analyze:
-            if not review.strip():
-                st.warning("Please enter a review first.")
+            review = st.session_state["review_input"].strip()
+
+            if not review:
+                st.warning("Please enter a movie review first.")
+                st.session_state["prediction"] = None
+
             else:
                 try:
                     with st.spinner(
@@ -856,89 +924,184 @@ with right:
                         tokenizer, model = load_model()
 
                         inputs = tokenizer(
-                            review.strip(),
+                            review,
                             return_tensors="pt",
                             truncation=True,
-                            max_length=256,
+                            max_length=MAX_LENGTH,
                         )
 
                         inputs = {
-                            key: value.to(DEVICE)
-                            for key, value in inputs.items()
+                            name: tensor.to(DEVICE)
+                            for name, tensor in inputs.items()
                         }
 
                         with torch.inference_mode():
                             outputs = model(**inputs)
+
                             probabilities = torch.softmax(
-                                outputs.logits, dim=1
+                                outputs.logits,
+                                dim=-1,
                             )[0]
 
-                        predicted_class = int(
+                        if len(probabilities) != 2:
+                            raise ValueError(
+                                "Expected a binary classification model "
+                                "with positive and negative classes."
+                            )
+
+                        # Read the model's configured label names.
+                        id2label = model.config.id2label
+
+                        label_names = {
+                            int(index): str(label).lower()
+                            for index, label in id2label.items()
+                        }
+
+                        positive_index = next(
+                            (
+                                index
+                                for index, label in label_names.items()
+                                if "positive" in label
+                            ),
+                            1,
+                        )
+
+                        negative_index = next(
+                            (
+                                index
+                                for index, label in label_names.items()
+                                if "negative" in label
+                            ),
+                            0,
+                        )
+
+                        if (
+                            positive_index == negative_index
+                            or positive_index not in (0, 1)
+                            or negative_index not in (0, 1)
+                        ):
+                            raise ValueError(
+                                "Could not determine the positive and "
+                                "negative class indices from the model "
+                                "configuration. Check config.json."
+                            )
+
+                        predicted_index = int(
                             torch.argmax(probabilities).item()
                         )
 
                         sentiment = (
                             "Positive"
-                            if predicted_class == 1
+                            if predicted_index == positive_index
                             else "Negative"
                         )
 
                         confidence = float(
-                            probabilities[predicted_class].item()
+                            probabilities[predicted_index].item()
                         )
-                        positive = float(probabilities[1].item())
-                        negative = float(probabilities[0].item())
 
-                    if sentiment == "Positive":
-                        st.success("😊 Positive sentiment")
-                    else:
-                        st.error("☹️ Negative sentiment")
+                        positive_probability = float(
+                            probabilities[positive_index].item()
+                        )
 
-                    st.metric(
-                        "Prediction confidence",
-                        f"{confidence:.1%}",
-                    )
+                        negative_probability = float(
+                            probabilities[negative_index].item()
+                        )
 
-                    st.markdown("**Positive probability**")
-                    st.progress(positive)
-                    st.caption(f"{positive:.1%}")
-
-                    st.markdown("**Negative probability**")
-                    st.progress(negative)
-                    st.caption(f"{negative:.1%}")
-
-                    st.caption(
-                        "Probabilities reflect the model's output "
-                        "and do not guarantee correctness."
-                    )
+                        st.session_state["prediction"] = {
+                            "sentiment": sentiment,
+                            "confidence": confidence,
+                            "positive": positive_probability,
+                            "negative": negative_probability,
+                        }
 
                 except Exception as error:
+                    st.session_state["prediction"] = None
+
                     st.error(
-                        f"Model loading or prediction failed: {error}"
+                        "Model loading or prediction failed."
                     )
 
-        else:
+                    with st.expander("Technical error details"):
+                        st.code(str(error))
+
+        # Show the most recent successful prediction.
+        result = st.session_state["prediction"]
+
+        if result is not None:
+
+            st.divider()
+
+            if result["sentiment"] == "Positive":
+                st.success("😊 Positive sentiment")
+            else:
+                st.error("☹️ Negative sentiment")
+
+            st.metric(
+                "Prediction confidence",
+                f'{result["confidence"]:.1%}',
+            )
+
+            st.markdown("**Positive probability**")
+
+            st.progress(result["positive"])
+
+            st.caption(
+                f'{result["positive"]:.1%}'
+            )
+
+            st.markdown("**Negative probability**")
+
+            st.progress(result["negative"])
+
+            st.caption(
+                f'{result["negative"]:.1%}'
+            )
+
+            st.caption(
+                "Probabilities reflect the model's estimates, "
+                "not a guarantee of correctness."
+            )
+
+        elif not analyze:
             st.markdown(
-                '<div class="result-title">Ready to analyze</div>',
+                '<div class="result-title">'
+                'Ready to analyze'
+                '</div>',
                 unsafe_allow_html=True,
             )
+
             st.markdown(
-                '<p class="muted">Your prediction and probability '
-                'scores will appear here.</p>',
+                '<p class="muted">'
+                'Your prediction and probability scores will appear here.'
+                '</p>',
                 unsafe_allow_html=True,
             )
+
             st.markdown("**Model:** Fine-tuned DistilBERT")
             st.markdown("**Model hosting:** Hugging Face")
             st.markdown("**Interface:** Streamlit")
 
-# ---------- Footer ----------
+# ==================================================
+# 10. FOOTER
+# ==================================================
+
 st.divider()
 
 st.markdown(
     """
-    <p style="text-align:center; color:#CBD5E1; font-size:0.85rem;">
+    <p style="
+        text-align: center;
+        color: #CBD5E1;
+        font-size: 0.85rem;
+    ">
         Built with Python · PyTorch · Hugging Face Transformers · Streamlit
+        <br>
+        Predictions may be incorrect, particularly for sarcasm
+        and mixed sentiment.
     </p>
     """,
     unsafe_allow_html=True,
 )
+
+
