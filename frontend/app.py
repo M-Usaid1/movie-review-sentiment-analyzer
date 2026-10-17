@@ -824,25 +824,23 @@ st.markdown(
 # ==================================================
 
 st.markdown(
-    """
-    <div class="hero">
-        <div class="eyebrow">
-            NLP · TRANSFORMERS · DEEP LEARNING
-        </div>
-
-        <h1>
-            Movie Review<br>
-            Sentiment Analyzer
-        </h1>
-
-        <p>
-            Explore the sentiment behind a movie review using
-            a fine-tuned DistilBERT model hosted on Hugging Face.
-        </p>
-    </div>
-    """,
+    '<div class="eyebrow">'
+    'NLP · TRANSFORMERS · DEEP LEARNING'
+    '</div>',
     unsafe_allow_html=True,
 )
+
+st.title("🎬 Movie Review Sentiment Analyzer")
+
+st.markdown(
+    """
+    Explore the sentiment behind a movie review using a fine-tuned
+    DistilBERT model hosted on Hugging Face.
+    """
+)
+
+st.divider()
+
 
 st.divider()
 
