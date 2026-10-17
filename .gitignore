@@ -1,0 +1,20 @@
+﻿# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local secrets
+.env
+.env.*
+
+# Trained model files - stored separately
+backend/distilbert_model/
+
+# Editor and operating system files
+.vscode/
+.DS_Store
+Thumbs.db
