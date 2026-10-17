@@ -646,7 +646,7 @@ from transformers import (
 )
 
 # ---------- Configuration ----------
-MODEL_REPO = "YOUR_USERNAME/distilbert-imdb-sentiment"
+MODEL_REPO = "Usaid2/distilbert-imdb-sentiment"
 DEVICE = torch.device("cpu")
 
 st.set_page_config(
